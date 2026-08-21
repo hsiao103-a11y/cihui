@@ -27,10 +27,11 @@
     }
     .container {
       width: 100%;
-      max-width: 500px;
+      max-width: 800px;
       display: flex;
-      flex-direction: column;
+      flex-wrap: wrap;
       gap: 15px;
+      justify-content: center;
     }
     .card {
       background: #ffffff;
@@ -38,6 +39,7 @@
       padding: 20px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
       text-align: center;
+      flex: 1 1 300px;
     }
     .pass-count {
       font-size: 4rem;
@@ -45,7 +47,6 @@
       color: var(--primary-color);
       margin: 10px 0;
     }
-    /* 筊杯動畫與顯示區 */
     .bua-buei-box {
       display: flex;
       justify-content: center;
@@ -67,7 +68,6 @@
       box-shadow: 2px 4px 6px rgba(0,0,0,0.3);
       transition: transform 0.5s ease;
     }
-    /* 陽面（平） vs 陰面（凸） 樣式 */
     .cup.yang {
       border-radius: 70px 0 70px 0;
       background-color: #d32f2f;
@@ -95,12 +95,18 @@
       text-align: center;
       margin-bottom: 10px;
     }
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 10px;
+    }
     button.btn-action {
       background-color: var(--primary-color);
       color: white;
       border: none;
-      padding: 12px 28px;
-      font-size: 1.2rem;
+      padding: 12px 24px;
+      font-size: 1.1rem;
       border-radius: 25px;
       cursor: pointer;
       font-weight: bold;
@@ -109,6 +115,16 @@
     button.btn-action:disabled {
       background-color: #ccc;
       box-shadow: none;
+    }
+    button.btn-reset {
+      background-color: #757575;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      font-size: 1.1rem;
+      border-radius: 25px;
+      cursor: pointer;
+      font-weight: bold;
     }
     .result-text {
       font-size: 1.4rem;
@@ -123,6 +139,26 @@
       color: #e65100;
       border-radius: 12px;
       font-size: 0.9rem;
+    }
+    /* 記錄欄位樣式 */
+    .history-list {
+      list-style: none;
+      padding: 0;
+      margin: 10px 0 0 0;
+      max-height: 250px;
+      overflow-y: auto;
+      text-align: left;
+    }
+    .history-item {
+      padding: 8px 12px;
+      border-bottom: 1px solid #eee;
+      font-size: 0.95rem;
+      display: flex;
+      justify-content: space-between;
+    }
+    .history-item:first-child {
+      background-color: #fff8e1;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -145,7 +181,6 @@
       <h3>🙏 祈福擲筊</h3>
       <input type="text" id="user-name" placeholder="請輸入您的姓名/稱呼" maxlength="10">
       
-      <!-- 筊杯動畫區 -->
       <div class="bua-buei-box" id="buei-box">
         <div class="cup yang" id="cup1">陽</div>
         <div class="cup yin" id="cup2">陰</div>
@@ -153,29 +188,39 @@
 
       <div id="result" class="result-text">請輸入姓名後點擊開始擲筊</div>
       <div id="combo-status" style="color: #666; margin-bottom: 10px;">當前連續聖筊：0 次</div>
+      
+      <div class="btn-group">
+        <button id="btn-throw" class="btn-action" onclick="startThrow()">開始擲筊</button>
+        <button id="btn-reset" class="btn-reset" onclick="resetGame()">重置</button>
+      </div>
 
-      <button id="btn-throw" class="btn-action" onclick="startThrow()">開始擲筊</button>
+      <!-- 右/下側過關紀錄區 -->
+      <div style="margin-top: 20px; border-top: 2px dashed #eee; padding-top: 10px;">
+        <h4 style="margin: 5px 0;">🏆 成功過關紀錄（最新在上）</h4>
+        <ul id="history-list" class="history-list">
+          <li style="color:#888; text-align:center; padding: 10px;">尚無過關紀錄</li>
+        </ul>
+      </div>
     </div>
   </div>
 
-  <!-- 引入 QRCode.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
   <script>
-    // 已自動帶入您的 Apps Script Web App API 網址
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbz678wM2Zcc06LcJuWsnSLgm3ADWa9obL0RGUC7Bngz5iLa2Z07INozhOia1WOtxkDo/exec";
-
+    
     let consecutiveShengCount = 0; // 當前連續聖筊次數
+    let totalAttempts = 0;         // 累計擲筊次數
     let isThrowing = false;
+    const historyRecords = [];     // 紀錄過關名單
 
-    // 1. 自動繪製當前網頁的 QR Code
+    // 1. 繪製 QR Code
     new QRCode(document.getElementById("qrcode"), {
       text: window.location.href,
       width: 120,
       height: 120
     });
 
-    // 2. 大螢幕端：定時同步試算表累積的過關總人數
+    // 2. 定時同步試算表過關人數
     function fetchPassCount() {
       fetch(GAS_API_URL)
         .then(res => res.json())
@@ -196,9 +241,10 @@
         alert("請先輸入您的姓名！");
         return;
       }
-
       if (isThrowing) return;
       isThrowing = true;
+
+      totalAttempts++; // 增加總擲筊次數
 
       const btn = document.getElementById('btn-throw');
       const box = document.getElementById('buei-box');
@@ -208,61 +254,98 @@
       resultText.innerText = `${nameInput} 誠心祈福中...`;
       box.classList.add('shaking');
 
-      // 模擬搖晃動畫 1 秒後開獎
       setTimeout(() => {
         box.classList.remove('shaking');
         
-        // 隨機結果 (0: 陽/凸面, 1: 陰/平面)
         const cup1IsYang = Math.random() < 0.5;
         const cup2IsYang = Math.random() < 0.5;
-
         const cup1 = document.getElementById('cup1');
         const cup2 = document.getElementById('cup2');
 
         cup1.className = `cup ${cup1IsYang ? 'yang' : 'yin'}`;
         cup1.innerText = cup1IsYang ? '陽' : '陰';
-        
         cup2.className = `cup ${cup2IsYang ? 'yang' : 'yin'}`;
         cup2.innerText = cup2IsYang ? '陽' : '陰';
 
-        // 判斷結果：聖筊（一陽一陰）、笑杯（兩陽）、陰杯（兩陰）
-        if (cup1IsYang !== cup2IsYang) {
-          // 聖筊
+        if (cup1IsYang !== cup2IsYang) { // 聖筊
           consecutiveShengCount++;
           if (consecutiveShengCount === 2) {
             resultText.style.color = "#d32f2f";
-            resultText.innerText = `🎉 恭喜 ${nameInput}！連續兩次【聖筊】過關！`;
-            uploadSuccessCount(); // 自動向 Google 試算表 +1
-            consecutiveShengCount = 0; // 重置計數
+            resultText.innerText = `🎉 恭喜 ${nameInput}！共擲了 ${totalAttempts} 次獲得兩次【聖筊】過關！`;
+            
+            // 新增至紀錄（最前面）
+            addHistoryRecord(nameInput, totalAttempts);
+            
+            uploadSuccessCount();
+            
+            // 完成後重置個人當前狀態
+            consecutiveShengCount = 0;
+            totalAttempts = 0;
           } else {
             resultText.style.color = "#2e7d32";
             resultText.innerText = `✨ ${nameInput} 擲出【聖筊】！再接再厲！`;
           }
-        } else if (cup1IsYang && cup2IsYang) {
-          // 笑杯
+        } else if (cup1IsYang && cup2IsYang) { // 笑杯
           consecutiveShengCount = 0;
           resultText.style.color = "#ed6c02";
           resultText.innerText = `😊 ${nameInput} 擲出【笑杯】(神明微笑，請重新祈求)`;
-        } else {
-          // 陰杯 / 怒杯
+        } else { // 陰杯
           consecutiveShengCount = 0;
           resultText.style.color = "#c62828";
           resultText.innerText = `🙏 ${nameInput} 擲出【陰杯】(神明未許，請重新誠心祈求)`;
         }
 
-        document.getElementById('combo-status').innerText = `當前連續聖筊：${consecutiveShengCount} 次`;
+        document.getElementById('combo-status').innerText = `當前連續聖筊：${consecutiveShengCount} 次 (已擲 ${totalAttempts} 次)`;
         btn.disabled = false;
         isThrowing = false;
       }, 1000);
     }
 
-    // 4. 連續兩次聖筊時發送至 Apps Script 寫入試算表
+    // 4. 新增紀錄並顯示在畫面上（最新排在最前面）
+    function addHistoryRecord(name, attempts) {
+      historyRecords.unshift({ name, attempts });
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const historyList = document.getElementById('history-list');
+      if (historyRecords.length === 0) {
+        historyList.innerHTML = '<li style="color:#888; text-align:center; padding: 10px;">尚無過關紀錄</li>';
+        return;
+      }
+      
+      historyList.innerHTML = historyRecords.map(item => `
+        <li class="history-item">
+          <span>👤 ${item.name}</span>
+          <span>🎯 嘗試 <strong>${item.attempts}</strong> 次達成</span>
+        </li>
+      `).join('');
+    }
+
+    // 5. 重置功能
+    function resetGame() {
+      consecutiveShengCount = 0;
+      totalAttempts = 0;
+      document.getElementById('user-name').value = '';
+      document.getElementById('result').style.color = '#333';
+      document.getElementById('result').innerText = '請輸入姓名後點擊開始擲筊';
+      document.getElementById('combo-status').innerText = '當前連續聖筊：0 次';
+      
+      const cup1 = document.getElementById('cup1');
+      const cup2 = document.getElementById('cup2');
+      cup1.className = 'cup yang';
+      cup1.innerText = '陽';
+      cup2.className = 'cup yin';
+      cup2.innerText = '陰';
+    }
+
+    // 6. 上傳至 Apps Script
     function uploadSuccessCount() {
       fetch(`${GAS_API_URL}?action=add`)
         .then(res => res.json())
         .then(data => {
           console.log("過關資料已成功同步至試算表", data);
-          fetchPassCount(); // 立即更新畫面數字
+          fetchPassCount();
         })
         .catch(err => console.error("上傳失敗:", err));
     }
