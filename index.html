@@ -71,7 +71,6 @@
       <h2>📱 手機掃碼體驗</h2>
       <div id="qrcode"></div>
       <p>掃描開啟手機進行擲筊</p>
-      <!-- 手機端測試按鈕 (正式展出時可隱藏) -->
       <button onclick="onSuccessTwoDivines()">模擬手機過關 (+1)</button>
     </div>
   </div>
@@ -80,10 +79,10 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <script>
-    // ⚠️ 請務必將以下網址替換為您的 Web 應用程式網址 (https://script.google.com/macros/s/.../exec)
-    const GAS_API_URL = "填入您的APPS_SCRIPT_WEB_APP網址";
+    // 已帶入您已部署好的 Apps Script API 網址
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbz678wM2Zcc06LcJuWsnSLgm3ADWa9obL0RGUC7Bngz5iLa2Z07INozhOia1WOtxkDo/exec";
 
-    // 1. 自動產生 QR Code (自動抓取目前網頁 URL)
+    // 1. 自動產生 QR Code (指向目前網頁)
     new QRCode(document.getElementById("qrcode"), {
       text: window.location.href,
       width: 180,
@@ -92,8 +91,6 @@
 
     // 2. 大螢幕端：抓取過關人數
     function fetchPassCount() {
-      if (GAS_API_URL.includes("https://script.google.com/macros/s/AKfycbz678wM2Zcc06LcJuWsnSLgm3ADWa9obL0RGUC7Bngz5iLa2Z07INozhOia1WOtxkDo/exec")) return; // 未設定網址時先不發送 Request
-      
       fetch(GAS_API_URL)
         .then(res => res.json())
         .then(data => {
@@ -115,7 +112,7 @@
         .then(res => res.json())
         .then(data => {
           console.log("寫入成功，最新人數：", data.count);
-          fetchPassCount(); // 立即重新整理畫面數字
+          fetchPassCount(); // 立即更新畫面數字
         })
         .catch(err => console.error("更新失敗:", err));
     }
