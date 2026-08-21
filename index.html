@@ -1,44 +1,39 @@
-<!-- 引入 Firebase SDK 與 QRCode.js -->
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<!-- 引入 QRCode 生成套件 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <script>
-  // 1. 填入 Firebase 專案設定
-  const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
-  };
-  
-  firebase.initializeApp(firebaseConfig);
-  const database = firebase.database();
-  const passCountRef = database.ref('passCount');
+  // 替換為你在 Apps Script 取得的 Web 應用程式 URL
+  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbz678wM2Zcc06LcJuWsnSLgm3ADWa9obL0RGUC7Bngz5iLa2Z07INozhOia1WOtxkDo/exec";
 
-  // 2. 自動產生當前網頁的 QR Code (供手機掃描)
+  // 1. 生成 QR Code (指向你的 GitHub Pages 網址)
   new QRCode(document.getElementById("qrcode"), {
-    text: window.location.href,
-    width: 200,
-    height: 200
+    text: "https://hsiao103-a11y.github.io/cihui/",
+    width: 180,
+    height: 180
   });
 
-  // 3. 大螢幕端：即時監聽資料庫變更並更新畫面數字
-  passCountRef.on('value', (snapshot) => {
-    const currentCount = snapshot.val() || 0;
-    const countElement = document.getElementById('pass-count-display');
-    if (countElement) {
-      countElement.innerText = currentCount;
-    }
-  });
+  // 2. 大螢幕端：定期查詢並更新人數 (輪詢 Polling，每 2 秒一次)
+  function fetchPassCount() {
+    fetch(GAS_API_URL)
+      .then(res => res.json())
+      .then(data => {
+        const display = document.getElementById('pass-count');
+        if (display) display.innerText = data.count;
+      })
+      .catch(err => console.error("抓取失敗:", err));
+  }
 
-  // 4. 手機端：當判斷達成「連續兩次聖筊」時呼叫此函式
-  function recordPassSuccess() {
-    passCountRef.transaction((currentCount) => {
-      return (currentCount || 0) + 1;
-    });
+  // 啟動定時監聽
+  setInterval(fetchPassCount, 2000);
+  fetchPassCount(); // 初始化讀取
+
+  // 3. 手機端：連續兩次聖筊觸發過關時呼叫
+  function onSuccessTwoDivines() {
+    fetch(`${GAS_API_URL}?action=add`)
+      .then(res => res.json())
+      .then(data => {
+        console.log("過關紀錄成功，最新人數：", data.count);
+      })
+      .catch(err => console.error("更新失敗:", err));
   }
 </script>
