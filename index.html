@@ -1,39 +1,124 @@
-<!-- 引入 QRCode 生成套件 -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>同樂70 AI祈福小助手 - 互動主視覺</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f7f3e9;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .dashboard-container {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      width: 100%;
+      max-width: 900px;
+      margin-top: 30px;
+      gap: 20px;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      flex: 1;
+    }
+    .pass-count {
+      font-size: 6rem;
+      font-weight: bold;
+      color: #d32f2f;
+      margin: 20px 0;
+    }
+    #qrcode {
+      display: flex;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    button {
+      background-color: #d32f2f;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 1.1rem;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
 
-<script>
-  // 替換為你在 Apps Script 取得的 Web 應用程式 URL
-  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbz678wM2Zcc06LcJuWsnSLgm3ADWa9obL0RGUC7Bngz5iLa2Z07INozhOia1WOtxkDo/exec";
+  <h1>🎉 同樂70 AI祈福線上擲筊</h1>
 
-  // 1. 生成 QR Code (指向你的 GitHub Pages 網址)
-  new QRCode(document.getElementById("qrcode"), {
-    text: "https://hsiao103-a11y.github.io/cihui/",
-    width: 180,
-    height: 180
-  });
+  <div class="dashboard-container">
+    <!-- 左側：計數器 -->
+    <div class="card">
+      <h2>過關總人次</h2>
+      <p>連續兩次聖筊</p>
+      <div id="pass-count" class="pass-count">0</div>
+      <p style="color: #666;">即時更新中...</p>
+    </div>
 
-  // 2. 大螢幕端：定期查詢並更新人數 (輪詢 Polling，每 2 秒一次)
-  function fetchPassCount() {
-    fetch(GAS_API_URL)
-      .then(res => res.json())
-      .then(data => {
-        const display = document.getElementById('pass-count');
-        if (display) display.innerText = data.count;
-      })
-      .catch(err => console.error("抓取失敗:", err));
-  }
+    <!-- 右側：QR Code 掃碼區 -->
+    <div class="card">
+      <h2>📱 手機掃碼體驗</h2>
+      <div id="qrcode"></div>
+      <p>掃描開啟手機進行擲筊</p>
+      <!-- 手機端測試按鈕 (正式展出時可隱藏) -->
+      <button onclick="onSuccessTwoDivines()">模擬手機過關 (+1)</button>
+    </div>
+  </div>
 
-  // 啟動定時監聽
-  setInterval(fetchPassCount, 2000);
-  fetchPassCount(); // 初始化讀取
+  <!-- 引入 QRCode.js 套件 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-  // 3. 手機端：連續兩次聖筊觸發過關時呼叫
-  function onSuccessTwoDivines() {
-    fetch(`${GAS_API_URL}?action=add`)
-      .then(res => res.json())
-      .then(data => {
-        console.log("過關紀錄成功，最新人數：", data.count);
-      })
-      .catch(err => console.error("更新失敗:", err));
-  }
-</script>
+  <script>
+    // ⚠️ 請務必將以下網址替換為您的 Web 應用程式網址 (https://script.google.com/macros/s/.../exec)
+    const GAS_API_URL = "填入您的APPS_SCRIPT_WEB_APP網址";
+
+    // 1. 自動產生 QR Code (自動抓取目前網頁 URL)
+    new QRCode(document.getElementById("qrcode"), {
+      text: window.location.href,
+      width: 180,
+      height: 180
+    });
+
+    // 2. 大螢幕端：抓取過關人數
+    function fetchPassCount() {
+      if (GAS_API_URL.includes("填入您的")) return; // 未設定網址時先不發送 Request
+      
+      fetch(GAS_API_URL)
+        .then(res => res.json())
+        .then(data => {
+          const display = document.getElementById('pass-count');
+          if (display && data.count !== undefined) {
+            display.innerText = data.count;
+          }
+        })
+        .catch(err => console.error("抓取失敗:", err));
+    }
+
+    // 每 3 秒自動更新一次人數
+    setInterval(fetchPassCount, 3000);
+    fetchPassCount(); // 初始化觸發一次
+
+    // 3. 手機端：連續兩次聖筊時呼叫此函式
+    function onSuccessTwoDivines() {
+      fetch(`${GAS_API_URL}?action=add`)
+        .then(res => res.json())
+        .then(data => {
+          console.log("寫入成功，最新人數：", data.count);
+          fetchPassCount(); // 立即重新整理畫面數字
+        })
+        .catch(err => console.error("更新失敗:", err));
+    }
+  </script>
+</body>
+</html>
